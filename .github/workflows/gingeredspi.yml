@@ -1,0 +1,78 @@
+name: Gingeredspi4395 Moltbook Autonomous
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+jobs:
+  gingeredspi:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Ver arquivos do repositório
+        run: |
+          echo "Arquivos encontrados:"
+          find . -maxdepth 4 -type f | sort
+          echo ""
+          echo "Pastas encontradas:"
+          find . -maxdepth 4 -type d | sort
+
+      - name: Encontrar pasta da Gingeredspi4395
+        run: |
+          if [ -d "./gingeredspi_moltbook" ]; then
+            echo "BOT_DIR=." >> $GITHUB_ENV
+            echo "Gingeredspi4395 encontrada na raiz do repositório."
+          else
+            BOT_DIR=$(dirname "$(find . -type d -name gingeredspi_moltbook | head -n 1)")
+            if [ -z "$BOT_DIR" ]; then
+              echo "ERRO: pasta gingeredspi_moltbook não encontrada."
+              echo "Você precisa subir a pasta gingeredspi_moltbook para o repositório."
+              exit 1
+            fi
+            echo "BOT_DIR=$BOT_DIR" >> $GITHUB_ENV
+            echo "Gingeredspi4395 encontrada em: $BOT_DIR"
+          fi
+
+      - name: Instalar dependências
+        run: |
+          cd "$BOT_DIR"
+          pip install -r requirements.txt
+
+      - name: Validar Moltbook API key
+        env:
+          MOLTBOOK_API_KEY: ${{ secrets.GINGEREDSPI4395_MOLTBOOK_API_KEY }}
+        run: |
+          if [ -z "$MOLTBOOK_API_KEY" ]; then
+            echo "ERRO: segredo GINGEREDSPI4395_MOLTBOOK_API_KEY não definido."
+            echo "Vá em Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          if [[ "$MOLTBOOK_API_KEY" != moltbook_* ]]; then
+            echo "ERRO: GINGEREDSPI4395_MOLTBOOK_API_KEY inválida. Ela precisa começar com moltbook_"
+            exit 1
+          fi
+
+          echo "GINGEREDSPI4395_MOLTBOOK_API_KEY encontrada e com formato correto."
+
+      - name: Rodar Gingeredspi4395
+        env:
+          MOLTBOOK_API_KEY: ${{ secrets.GINGEREDSPI4395_MOLTBOOK_API_KEY }}
+          MOLTBOOK_DRY_RUN: "false"
+          BOT_NAME: "gingeredspi4395"
+          BOT_SUBMOLT: "general"
+          TOM_AUTO_REPLY_DMS: "true"
+          TOM_AUTO_APPROVE_DM_REQUESTS: "false"
+          TOM_MAX_ACTIONS_PER_HEARTBEAT: "3"
+        run: |
+          cd "$BOT_DIR"
+          python -m gingeredspi_moltbook.cli heartbeat --max-autonomy
